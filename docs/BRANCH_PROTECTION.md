@@ -21,29 +21,17 @@ itself is built around (`gh pr checkout` + review), including for the maintainer
 
 ## Changing it
 
-Edit and re-run the same API call (or use the GitHub UI under **Settings → Branches**):
+The exact payload applied is checked in at
+[`docs/branch-protection-ruleset.json`](branch-protection-ruleset.json). Edit that file and re-apply
+it (or use the GitHub UI under **Settings → Branches**):
 
 ```bash
 gh api --method PUT repos/sknt2024/Multi-Agent-PR-Reviewer/branches/main/protection \
   -H "Accept: application/vnd.github+json" \
-  --input - <<'EOF'
-{
-  "required_status_checks": null,
-  "enforce_admins": true,
-  "required_pull_request_reviews": {
-    "required_approving_review_count": 0,
-    "dismiss_stale_reviews": false,
-    "require_code_owner_reviews": false
-  },
-  "restrictions": null,
-  "allow_force_pushes": false,
-  "allow_deletions": false,
-  "required_linear_history": false,
-  "required_conversation_resolution": true
-}
-EOF
+  --input docs/branch-protection-ruleset.json
 ```
 
 Note `-f`/`-F` flags on `gh api` can't express a JSON `null` (they send the literal string
-`"null"`, which the branch-protection endpoint rejects) — use `--input -` with a heredoc for any
-field that needs `null` (`required_status_checks`, `restrictions`).
+`"null"`, which the branch-protection endpoint rejects) — that's why this is a real JSON file passed
+via `--input`, rather than inline `-f`/`-F` flags, for the two fields that need `null`
+(`required_status_checks`, `restrictions`).

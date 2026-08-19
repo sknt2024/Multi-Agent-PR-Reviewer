@@ -58,6 +58,7 @@ orchestrator.runReview()                              (src/orchestrator.js)
   ├─ 4. discovery agent (1x)                             (src/prompts/discovery.js)
   ├─ 5. invariants merged into persistent state           (src/state/store.js)
   ├─ 6. 8x maker agents, run in parallel via Promise.all   (src/prompts/makers.js)
+  ├─    ⤷ if ALL 8 fail (e.g. no Claude auth), abort here — no report generated or posted
   ├─ 7. applyMechanicalGates()                            (src/gates.js)
   ├─ 8. VERIFY agent (1x, fresh context)                   (src/prompts/verify.js)
   ├─ 9. runVerificationCommands()                          (src/verify/runCommands.js)
@@ -82,7 +83,7 @@ verify step a genuine independent check rather than the same context re-assertin
 | Module | Responsibility |
 |---|---|
 | `bin/pr-review.js` | CLI entry point: arg parsing, calls `runReview`, prints/writes/posts the report. |
-| `src/orchestrator.js` | The pipeline itself — owns ordering, parallelism, and wiring every stage together. |
+| `src/orchestrator.js` | The pipeline itself — owns ordering, parallelism, and wiring every stage together. Aborts (throws) rather than computing a verdict if every maker agent fails, so total agent-infrastructure failure can't silently resolve to `APPROVE` (see §12). |
 | `src/github/gh.js` | All GitHub I/O via the `gh` CLI (`execFile`, never a shell string — no injection risk). PR URL/repo parsing, metadata, diff, clone+checkout, comment posting. |
 | `src/agents/runAgent.js` | Thin wrapper around `query()` from the Claude Agent SDK. Runs one session to completion, returns `{ ok, output, error, costUsd, numTurns }`. Catches SDK-thrown errors (e.g. max-turns) instead of letting them crash the process. |
 | `src/schemas.js` | JSON Schemas enforced on every agent's structured output — the wire contract between agents and the orchestrator. |
@@ -214,15 +215,28 @@ pr-review --repo owner/repo --pr 123 [options]
 ## 10. GitHub Action Setup
 
 `.github/workflows/pr-review.yml` is a **template**, meant to be copied into the repository you want
-reviewed (not run from this tool's own repo):
+reviewed:
 
 1. Push this project to GitHub.
-2. In the copied workflow file, set `REVIEWER_REPO` to `<your-user>/PR_Reviewer_Agent`.
+2. In the copied workflow file, set `REVIEWER_REPO` to `<your-user>/Multi-Agent-PR-Reviewer`.
 3. Add an `ANTHROPIC_API_KEY` secret to the target repo (required — there's no interactive `claude
    login` in CI).
 4. The workflow checks out the target repo at the PR head SHA, checks out this tool into a sibling
    directory, `npm ci`s it, then runs `pr-review.js --local-dir <target checkout> --post` using the
-   Action's own `GITHUB_TOKEN` for `gh` calls.
+   Action's own `GITHUB_TOKEN` for `gh` calls. Note it always runs the reviewer from `REVIEWER_REF`
+   (`main` by default) — a fix or prompt change only takes effect in CI once it's merged there, not
+   while it's still sitting on an open PR branch.
+
+**"Template" is documentation intent, not an enforced restriction.** Committing this file to
+`.github/workflows/` in *this* repo's own `main` (as happened here — see §13) makes GitHub run it on
+this repo's own pull requests too; GitHub doesn't read the header comment. If you don't want that,
+either don't commit the file to this repo's own default branch, or treat it as a real deployment and
+add `ANTHROPIC_API_KEY` here as well (`gh secret set ANTHROPIC_API_KEY --repo <owner>/<repo>`) so it
+actually works instead of failing closed on every PR (§12 covers what happens when it fails without
+the fix in §12/§13 applied).
+
+**Branch protection on `main`** is documented separately in
+[`docs/BRANCH_PROTECTION.md`](BRANCH_PROTECTION.md) — what's applied, why, and how to change it.
 
 ## 11. Extending the System
 
@@ -275,6 +289,15 @@ work unchanged.
   the Action template only posts because the repo owner explicitly added that workflow file.
 - **No test suite yet for the orchestration logic itself** (`gates.js`, `riskCalc.js`,
   `report/format.js` are all pure functions and would be cheap to unit test — see Roadmap).
+- **Total agent failure previously resolved to a false `APPROVE`.** §7's verdict table treats zero
+  verified findings as `APPROVE` — correct when 8 makers genuinely found nothing, wrong when all 8
+  never ran at all. Found during CI testing (§13): with no `ANTHROPIC_API_KEY` set, every maker
+  agent failed with "Not logged in," `candidates.length` was `0`, and the orchestrator fell through
+  to computing (and, with `--post`, actually posting) `APPROVE` — a confident-looking review that
+  never happened. Fixed in `src/orchestrator.js`: if `successfulMakers.length === 0` after the maker
+  fan-out, the run throws before generating or posting any report. The threshold is deliberately
+  "all failed," not a majority — a partial failure (e.g. 1 of 8 makers down) still produces a
+  legitimate, if narrower, review and shouldn't abort.
 
 ## 13. Validation Run
 
@@ -295,6 +318,33 @@ The pipeline was run end-to-end against a real open PR
 Two real bugs were caught and fixed during this validation (see §12): the nullable-optional-field
 schema issue, and the uncaught max-turns exception in `runAgent.js`.
 
+### Session 2 — `--post`, branch protection, and the false-approve bug (2026-08-19)
+
+- Confirmed the Claude Agent SDK authenticates via the local `claude` OAuth login with no
+  `ANTHROPIC_API_KEY` set, using an isolated minimal `query()` call before trusting the full
+  pipeline to it.
+- Ran the full pipeline against a live throwaway PR in this tool's own repo, with a deliberately
+  injected off-by-one bug (`slice(0, max - 1)` instead of `slice(0, max)`). Verdict `APPROVE WITH
+  COMMENTS`; the bug was caught with executed evidence (the VERIFY agent ran the function against a
+  10-element array and reported actual vs. expected output), and an unrelated candidate was
+  correctly rejected by VERIFY.
+- Tested `--post` end-to-end: the CLI's comment (authored by the invoking `gh` user, not a bot)
+  landed on the PR with the full report, confirmed via the GitHub API rather than trusting the
+  CLI's own "Posted." log line.
+- While checking that comment, found a second, unrelated `github-actions[bot]` comment on the same
+  PR claiming `APPROVE` with `Agents executed: 9` — this tool's own copy of
+  `.github/workflows/pr-review.yml` had auto-run (see §10) with no `ANTHROPIC_API_KEY` configured on
+  this repo, every agent failed with "Not logged in," and the false-approve bug (§12) posted anyway.
+- Fixed the bug in `src/orchestrator.js`, verified the fix locally first (forced total failure with
+  `--model bogus-model-does-not-exist`; process exited `1`, no report file written), then verified
+  it live in CI on a fresh PR: the same no-`ANTHROPIC_API_KEY` conditions now produce a workflow run
+  with conclusion `failure` and **zero** PR comments, instead of a `success` run with a false
+  `APPROVE`.
+- Applied branch protection to `main` (PR required, no admin bypass, no force-push/deletion) —
+  see `docs/BRANCH_PROTECTION.md`.
+- As of this writing, `ANTHROPIC_API_KEY` is still not set on this repo's own secrets, so its own
+  workflow will keep failing closed (correctly) until that's added.
+
 ## 14. Roadmap
 
 - Unit tests for `gates.js`, `riskCalc.js`, `report/format.js` (pure functions, no network needed).
@@ -304,3 +354,5 @@ schema issue, and the uncaught max-turns exception in `runAgent.js`.
   summary comment, once GitHub's suggested-line-comment semantics are wired up.
 - GitLab/Bitbucket adapters behind the same four-function interface described in §11.
 - Publish to npm so the GitHub Action template doesn't need a separate checkout step.
+- Add `ANTHROPIC_API_KEY` to this repo's own secrets so its own copy of the workflow (§10) reviews
+  its own PRs instead of failing closed — or explicitly decide not to run it here at all.
