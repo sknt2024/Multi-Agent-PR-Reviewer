@@ -108,6 +108,14 @@ export async function runReview({
       })
     );
 
+    const successfulMakers = makerRuns.filter((r) => r.ok);
+    if (successfulMakers.length === 0) {
+      const errors = makerRuns.map((r) => `${r.label}: ${r.error}`).join("; ");
+      throw new Error(
+        `All ${makerRuns.length} maker agents failed — aborting without a verdict (a review can't be computed from zero real findings). Errors: ${errors}`
+      );
+    }
+
     const { candidates, rejected: mechanicallyRejected } = applyMechanicalGates(makerRuns);
     log(`${candidates.length} candidate finding(s) survived mechanical gates (${mechanicallyRejected.length} rejected/merged)`);
 
