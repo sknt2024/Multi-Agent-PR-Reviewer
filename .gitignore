@@ -1,0 +1,4 @@
+node_modules/
+.pr-review-*.md
+*.log
+.DS_Store

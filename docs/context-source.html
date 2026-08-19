@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PR Reviewer Agent — Project Context</title>
+<style>
+  :root{
+    --ink:#1c1f26;
+    --ink-soft:#4a5063;
+    --muted:#767c8c;
+    --rule:#e2e4ea;
+    --panel:#f6f7fa;
+    --accent:#4338ca;
+    --accent-soft:#eef0fd;
+    --accent-line:#c7cbf5;
+    --good:#0f7a5a;
+    --good-bg:#e9f7f1;
+    --warn:#9a5b00;
+    --warn-bg:#fdf1de;
+    --crit:#b3261e;
+  }
+  *{box-sizing:border-box;}
+  @page{ size:A4; margin:20mm 17mm 18mm 17mm; }
+  html,body{
+    margin:0; padding:0; background:#fff; color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:10.3pt; line-height:1.55;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3{ font-family:Georgia,"Times New Roman",serif; color:var(--ink); font-weight:700; }
+  p{ margin:0 0 8pt 0; }
+  code, .mono{ font-family:"SF Mono",Menlo,Consolas,monospace; font-size:9pt; }
+
+  /* ---------- Cover ---------- */
+  .cover{ padding-top:34mm; page-break-after:always; }
+  .cover .kicker{
+    display:inline-block; font-family:-apple-system,sans-serif; font-size:8.5pt; font-weight:700;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+    background:var(--accent-soft); border:1px solid var(--accent-line);
+    border-radius:20px; padding:4pt 12pt; margin-bottom:16pt;
+  }
+  .cover h1{ font-size:33pt; line-height:1.12; margin:0 0 8pt 0; letter-spacing:-.01em; }
+  .cover .subtitle{ font-size:13pt; color:var(--ink-soft); max-width:130mm; margin-bottom:22pt; }
+  .cover .meta{ display:flex; gap:22pt; margin-top:26pt; padding-top:14pt; border-top:1px solid var(--rule); }
+  .cover .meta div{ font-size:8.6pt; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+  .cover .meta strong{ display:block; font-size:11pt; color:var(--ink); text-transform:none; letter-spacing:0; margin-top:3pt; font-weight:600; }
+  .cover .status{
+    margin-top:30pt; display:inline-flex; align-items:center; gap:8pt;
+    background:var(--good-bg); border:1px solid #bfe3d3; color:var(--good);
+    border-radius:8pt; padding:9pt 14pt; font-size:9.3pt; font-weight:600;
+  }
+  .cover .dot{ width:7pt; height:7pt; border-radius:50%; background:var(--good); display:inline-block; }
+  .cover .lede{ margin-top:26pt; font-size:10.6pt; color:var(--ink-soft); max-width:140mm; }
+
+  /* ---------- Sections ---------- */
+  section{ margin-bottom:20pt; }
+  .sec-num{ color:var(--accent); font-family:Georgia,serif; }
+  h2{ font-size:15pt; display:flex; align-items:baseline; gap:9pt; margin:0 0 10pt 0; padding-bottom:7pt; border-bottom:2px solid var(--ink); page-break-after:avoid; break-after:avoid; }
+  h2 .n{ font-size:11pt; color:var(--accent); font-weight:700; }
+  h3{ font-size:11pt; margin:14pt 0 6pt 0; page-break-after:avoid; break-after:avoid; }
+
+  .lead{ font-size:11pt; color:var(--ink-soft); }
+
+  ul.principles{ list-style:none; margin:0; padding:0; display:grid; gap:8pt; }
+  ul.principles li{ padding:9pt 12pt; background:var(--panel); border-left:3px solid var(--accent); border-radius:3px; page-break-inside:avoid; break-inside:avoid; }
+  ul.principles b{ color:var(--ink); }
+
+  /* ---------- Pipeline ---------- */
+  .pipeline{ position:relative; margin:14pt 0 4pt 0; padding-left:2pt; }
+  .step{ display:flex; gap:12pt; position:relative; padding-bottom:13pt; page-break-inside:avoid; break-inside:avoid; }
+  .step:last-child{ padding-bottom:0; }
+  .step .rail{ width:20pt; flex:none; display:flex; flex-direction:column; align-items:center; }
+  .step .bullet{
+    width:19pt; height:19pt; border-radius:50%; background:var(--accent); color:#fff;
+    font-size:9pt; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none;
+  }
+  .step .line{ width:2px; flex:1; background:var(--rule); margin-top:2pt; }
+  .step:last-child .line{ display:none; }
+  .step .body{ padding-top:1pt; }
+  .step .body .t{ font-weight:700; font-size:10.3pt; color:var(--ink); }
+  .step .body .d{ color:var(--ink-soft); font-size:9.4pt; margin-top:1pt; }
+
+  /* ---------- Tables ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:9.3pt; margin:6pt 0; }
+  th{ text-align:left; font-size:8pt; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); padding:5pt 8pt; border-bottom:1.5px solid var(--ink); }
+  td{ padding:6pt 8pt; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-soft); }
+  tr:last-child td{ border-bottom:none; }
+  tr{ page-break-inside:avoid; break-inside:avoid; }
+  td.key{ color:var(--ink); font-weight:600; white-space:nowrap; }
+  td code{ background:var(--panel); padding:1pt 4pt; border-radius:3px; }
+
+  /* ---------- Two-col cards ---------- */
+  .cards{ display:grid; grid-template-columns:1fr 1fr; gap:10pt; page-break-inside:avoid; break-inside:avoid; }
+  .card{ border:1px solid var(--rule); border-radius:6pt; padding:11pt 13pt; page-break-inside:avoid; break-inside:avoid; }
+  .card h3{ margin:0 0 6pt 0; font-size:10.5pt; }
+  .card p{ font-size:9.3pt; color:var(--ink-soft); margin:0 0 6pt 0; }
+  .card ul{ margin:0; padding-left:14pt; font-size:9.2pt; color:var(--ink-soft); }
+  .card li{ margin-bottom:3pt; }
+
+  /* ---------- Case study ---------- */
+  .case{ background:var(--panel); border-radius:7pt; padding:14pt 16pt; border:1px solid var(--rule); page-break-inside:avoid; break-inside:avoid; }
+  .case .badge{ display:inline-block; background:#fde8e6; color:var(--crit); font-weight:700; font-size:8pt; text-transform:uppercase; letter-spacing:.05em; border-radius:4px; padding:2pt 7pt; margin-bottom:7pt; }
+  .case .badge.medium{ background:var(--warn-bg); color:var(--warn); }
+  .case h3{ margin:0 0 5pt 0; }
+  .case .stat-row{ display:flex; gap:20pt; margin-top:11pt; padding-top:10pt; border-top:1px solid var(--rule); }
+  .case .stat-row div{ font-size:8.3pt; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .case .stat-row strong{ display:block; font-size:14pt; color:var(--ink); font-family:Georgia,serif; }
+
+  /* ---------- Checklist ---------- */
+  .status-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6pt 18pt; }
+  .status-item{ display:flex; align-items:flex-start; gap:8pt; font-size:9.4pt; padding:4pt 0; page-break-inside:avoid; break-inside:avoid; }
+  .status-item .mark{ flex:none; width:15pt; height:15pt; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:8.5pt; font-weight:800; color:#fff; margin-top:1pt; }
+  .status-item .label{ flex:1; min-width:0; }
+  .mark.done{ background:var(--good); }
+  .mark.pending{ background:var(--muted); }
+
+  /* ---------- Repo map ---------- */
+  .repo-map{ background:#1c1f26; color:#dfe3f0; border-radius:7pt; padding:13pt 16pt; font-size:8.6pt; line-height:1.65; white-space:pre; overflow:hidden; page-break-inside:avoid; break-inside:avoid; }
+  .repo-map .c{ color:#7c8ff0; }
+  .repo-map .d{ color:#8f95a6; }
+
+  footer{ margin-top:26pt; padding-top:10pt; border-top:1px solid var(--rule); display:flex; justify-content:space-between; font-size:8pt; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ===================== COVER ===================== -->
+<div class="cover">
+  <span class="kicker">Project Context Brief</span>
+  <h1>PR Reviewer Agent</h1>
+  <div class="subtitle">A multi-agent, evidence-verified pull request reviewer for GitHub — specialist findings are proposed by parallel Claude Agent SDK sessions and independently re-derived by a fresh-context checker before anything is reported.</div>
+
+  <div class="status"><span class="dot"></span> Working MVP — pipeline validated end-to-end against a live, real-world PR</div>
+
+  <p class="lede">This document gives full context on what the project is, why it's built the way it is, and how its pieces fit together — for anyone picking it up without prior conversation history. It complements <span class="mono">README.md</span> (quick start) and <span class="mono">docs/DOCUMENTATION.md</span> (module-level technical reference).</p>
+
+  <div class="meta">
+    <div>Version<strong>0.1.0</strong></div>
+    <div>Runtime<strong>Node.js 18+</strong></div>
+    <div>Engine<strong>Claude Agent SDK</strong></div>
+    <div>Prepared<strong>19 Aug 2026</strong></div>
+  </div>
+</div>
+
+<!-- ===================== 1. PROBLEM & PHILOSOPHY ===================== -->
+<section>
+  <h2><span class="n">01</span> The Problem</h2>
+  <p class="lead">Most AI PR reviewers run a single pass over a diff and narrate confidence — "this looks fine," "this might be an issue" — with no independent check on whether the claim is actually true. That produces two failure modes at once: plausible-sounding false positives that erode trust, and real issues missed because one pass only looks at the diff text, not the live repository.</p>
+</section>
+
+<section>
+  <h2><span class="n">02</span> Design Philosophy</h2>
+  <ul class="principles">
+    <li><b>Maker ≠ checker.</b> Eight specialist agents propose candidate findings independently and never see each other's output. A separate agent, started with zero shared context, re-derives every claim from the repository before it counts.</li>
+    <li><b>Repository is the source of truth.</b> Every agent reads the actual checked-out PR branch — <span class="mono">Read/Grep/Glob/Bash</span> — not just the diff text. A finding without evidence the agent actually read is rejected.</li>
+    <li><b>Gates are computed, not narrated.</b> Evidence checks, duplicate merges, and the final risk verdict are decided in plain deterministic code — never asserted by an LLM.</li>
+    <li><b>Small and high-confidence beats exhaustive.</b> Every agent is instructed to prefer zero findings over a weak one.</li>
+  </ul>
+</section>
+
+<!-- ===================== 3. PIPELINE ===================== -->
+<section>
+  <h2><span class="n">03</span> Review Pipeline</h2>
+  <div class="pipeline">
+    <div class="step"><div class="rail"><div class="bullet">1</div><div class="line"></div></div>
+      <div class="body"><div class="t">Fetch &amp; checkout</div><div class="d">PR metadata, diff, and changed files pulled via the GitHub CLI; the PR branch is cloned into a disposable temp directory (or an already-checked-out local path is reused).</div></div></div>
+    <div class="step"><div class="rail"><div class="bullet">2</div><div class="line"></div></div>
+      <div class="body"><div class="t">Discovery agent</div><div class="d">One session detects languages, frameworks, architecture, the PR's actual intent, and project invariants — each backed by a concrete source in the repo, merged into persistent state.</div></div></div>
+    <div class="step"><div class="rail"><div class="bullet">3</div><div class="line"></div></div>
+      <div class="body"><div class="t">8 maker agents, in parallel</div><div class="d">Bug Hunter, Security, Performance, Architecture, Testing, API/Database, Framework Specialist, DevOps/CI — each a fresh session scoped to one concern, returning structured JSON findings.</div></div></div>
+    <div class="step"><div class="rail"><div class="bullet">4</div><div class="line"></div></div>
+      <div class="body"><div class="t">Mechanical gates</div><div class="d">Deterministic code rejects findings with no evidence and merges cross-agent duplicates by file, overlapping lines, and title similarity — before any verify tokens are spent.</div></div></div>
+    <div class="step"><div class="rail"><div class="bullet">5</div><div class="line"></div></div>
+      <div class="body"><div class="t">Fresh-context VERIFY agent</div><div class="d">A brand-new session, with no memory of the makers' reasoning, independently re-checks every surviving candidate against the repo and diff — applying 7 explicit gates and returning VALID / INVALID / UNCERTAIN.</div></div></div>
+    <div class="step"><div class="rail"><div class="bullet">6</div><div class="line"></div></div>
+      <div class="body"><div class="t">Real verification commands</div><div class="d">Detects and runs the smallest applicable check — <span class="mono">npm test</span>, <span class="mono">dart analyze</span>, <span class="mono">go test ./...</span>, <span class="mono">pytest</span> — so the report carries actual exit-code evidence.</div></div></div>
+    <div class="step"><div class="rail"><div class="bullet">7</div></div>
+      <div class="body"><div class="t">Verdict, report, persistence</div><div class="d">Risk and verdict are computed in code from verified severities; a no-tool-access synthesis pass writes only the prose summary; the report is checkpointed and printed, saved, and/or posted to the PR.</div></div></div>
+  </div>
+</section>
+
+<!-- ===================== 4. AGENT ROSTER ===================== -->
+<section>
+  <h2><span class="n">04</span> Agent Roster</h2>
+  <table>
+    <tr><th>Agent</th><th>Scope</th></tr>
+    <tr><td class="key">Discovery</td><td>Languages, frameworks, architecture, PR intent, evidence-backed project invariants.</td></tr>
+    <tr><td class="key">Bug Hunter</td><td>Conditions, null handling, races, state transitions, error handling, resource lifecycle.</td></tr>
+    <tr><td class="key">Security</td><td>AuthN/AuthZ, injection, SSRF, secrets, unsafe deserialization — traced attack surface → entry point → data flow → impact.</td></tr>
+    <tr><td class="key">Performance</td><td>Algorithmic complexity, N+1 queries, blocking operations, unbounded concurrency/memory, missing timeouts.</td></tr>
+    <tr><td class="key">Architecture</td><td>Layer boundaries and dependency direction — only where it creates measurable engineering risk.</td></tr>
+    <tr><td class="key">Testing</td><td>What changed, what could regress, what's actually covered — reads real test files, doesn't assume.</td></tr>
+    <tr><td class="key">API / Database</td><td>HTTP semantics and validation; SQL/Mongo index and query-pattern checks.</td></tr>
+    <tr><td class="key">Framework Specialist</td><td>Detects Flutter / Node / React usage from the repo itself, applies only the relevant checklist.</td></tr>
+    <tr><td class="key">DevOps / CI</td><td>Dockerfiles, GitHub Actions, migrations, rollback safety — things that break deploys even when tests pass.</td></tr>
+    <tr><td class="key">Verify</td><td>Fresh-context checker — re-derives every candidate finding from the repo, applies GATE1–GATE7, returns a verdict.</td></tr>
+    <tr><td class="key">Synthesis</td><td>No repo access — writes only the Summary and Positive Changes prose, strictly grounded in already-verified data.</td></tr>
+  </table>
+</section>
+
+<!-- ===================== 5. DEPLOYMENT ===================== -->
+<section>
+  <h2><span class="n">05</span> How It Runs</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>CLI</h3>
+      <p>A local Node.js command against any PR URL or repo/number pair.</p>
+      <ul>
+        <li>Print, save (<span class="mono">--out</span>), or post (<span class="mono">--post</span>) the report</li>
+        <li>Review an already-checked-out path with <span class="mono">--local-dir</span></li>
+        <li>Reuses the last cached report for an unchanged commit</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>GitHub Action</h3>
+      <p>A template workflow to drop into any repo you want reviewed automatically.</p>
+      <ul>
+        <li>Triggers on PR opened / synchronized / reopened</li>
+        <li>Posts the report as a PR comment via <span class="mono">GITHUB_TOKEN</span></li>
+        <li>Requires an <span class="mono">ANTHROPIC_API_KEY</span> repo secret</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 6. CASE STUDY ===================== -->
+<section>
+  <h2><span class="n">06</span> Real-World Validation</h2>
+  <div class="case">
+    <span class="badge medium">Medium — verified</span>
+    <h3>genesis-kit PR #3 — "fix argument parsing" </h3>
+    <p style="font-size:9.4pt;">The pipeline was run against a real open PR with no prior tuning for this repo. Of 5 candidate findings from the 8 maker agents, the VERIFY agent rejected 3 as unsupported and confirmed 2. The surviving MEDIUM finding was a genuine, reproducible bug: the fix made the PR's own documented invocation succeed, but a variable computed <em>before</em> the new argument-shift logic runs still captured a flag token as the project name — reproduced with an actual <span class="mono">bash -x</span> trace and a one-line suggested fix, not a guess.</p>
+    <div class="stat-row">
+      <div>Agents run<strong>10</strong></div>
+      <div>Candidates<strong>5</strong></div>
+      <div>Verified<strong>2</strong></div>
+      <div>Rejected<strong>3</strong></div>
+      <div>Cache re-run<strong>~1.5s</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 7. STATUS ===================== -->
+<section>
+  <h2><span class="n">07</span> Project Status</h2>
+  <div class="status-grid">
+    <div class="status-item"><span class="mark done">✓</span><span class="label">Full pipeline implemented and passing a live end-to-end run</span></div>
+    <div class="status-item"><span class="mark done">✓</span><span class="label">Structured, schema-enforced agent output (no free-text parsing)</span></div>
+    <div class="status-item"><span class="mark done">✓</span><span class="label">Deterministic gates, risk calc, and report formatting</span></div>
+    <div class="status-item"><span class="mark done">✓</span><span class="label">Persistent invariants / history / checkpoint cache</span></div>
+    <div class="status-item"><span class="mark done">✓</span><span class="label">CLI with print / save / post / local-dir / force / cache</span></div>
+    <div class="status-item"><span class="mark pending">•</span><span class="label">Not yet pushed to a GitHub remote or committed</span></div>
+    <div class="status-item"><span class="mark pending">•</span><span class="label">Action template needs <span class="mono">REVIEWER_REPO</span> filled in after publishing</span></div>
+    <div class="status-item"><span class="mark pending">•</span><span class="label">No unit tests yet for gates / risk-calc / report modules</span></div>
+    <div class="status-item"><span class="mark pending">•</span><span class="label">GitHub-only for now — GitLab/Bitbucket adapters not built</span></div>
+    <div class="status-item"><span class="mark pending">•</span><span class="label">No inline per-line PR comments yet (summary comment only)</span></div>
+  </div>
+</section>
+
+<!-- ===================== 8. REPO MAP ===================== -->
+<section >
+  <h2><span class="n">08</span> Repository Map</h2>
+  <div class="repo-map">bin/pr-review.js            <span class="d"># CLI entry point</span>
+src/orchestrator.js         <span class="d"># pipeline: wires every stage together</span>
+src/github/gh.js            <span class="d"># all GitHub I/O via the gh CLI</span>
+src/agents/runAgent.js      <span class="d"># one Claude Agent SDK session, start to finish</span>
+src/schemas.js              <span class="d"># JSON Schema contracts for every agent</span>
+src/prompts/                <span class="d"># discovery / makers / verify / synthesis / shared</span>
+src/gates.js                <span class="d"># mechanical evidence + duplicate gates</span>
+src/riskCalc.js             <span class="d"># verdict computed from verified severities</span>
+src/report/format.js        <span class="d"># deterministic markdown report</span>
+src/state/store.js          <span class="d"># invariants / history / checkpoints on disk</span>
+src/verify/runCommands.js   <span class="d"># npm test / dart analyze / go test / pytest</span>
+.github/workflows/pr-review.yml  <span class="d"># GitHub Action template</span>
+docs/DOCUMENTATION.md       <span class="d"># module-level technical reference</span></div>
+</section>
+
+<footer>
+  <span>PR Reviewer Agent — Project Context Brief</span>
+  <span>docs/DOCUMENTATION.md for full technical detail</span>
+</footer>
+
+</body>
+</html>

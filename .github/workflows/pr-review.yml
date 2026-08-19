@@ -1,0 +1,60 @@
+# Template GitHub Action for running the multi-agent PR reviewer automatically on every PR.
+#
+# This file is meant to be copied into the *target* repository you want reviewed (the one that
+# receives PRs), not run from this tool's own repo. Before copying it over:
+#   1. Push this pr-reviewer-agent project to GitHub.
+#   2. Replace REVIEWER_REPO below with "<your-user>/PR_Reviewer_Agent".
+#   3. In the target repo's settings, add an ANTHROPIC_API_KEY secret.
+#
+# See README.md "GitHub Action" section for full setup instructions.
+
+name: PR Review (multi-agent)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  REVIEWER_REPO: your-user/PR_Reviewer_Agent # <-- update after pushing this tool to GitHub
+  REVIEWER_REF: main
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: target-repo
+
+      - name: Checkout PR reviewer agent
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REVIEWER_REPO }}
+          ref: ${{ env.REVIEWER_REF }}
+          path: pr-reviewer-agent
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install reviewer dependencies
+        working-directory: pr-reviewer-agent
+        run: npm ci
+
+      - name: Run multi-agent review and post to PR
+        working-directory: pr-reviewer-agent
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          node bin/pr-review.js \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --local-dir "${{ github.workspace }}/target-repo" \
+            --post
