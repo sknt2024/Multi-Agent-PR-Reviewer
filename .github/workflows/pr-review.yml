@@ -3,7 +3,7 @@
 # This file is meant to be copied into the *target* repository you want reviewed (the one that
 # receives PRs), not run from this tool's own repo. Before copying it over:
 #   1. Push this pr-reviewer-agent project to GitHub.
-#   2. Replace REVIEWER_REPO below with "<your-user>/PR_Reviewer_Agent".
+#   2. Replace REVIEWER_REPO below with "<your-user>/Multi-Agent-PR-Reviewer".
 #   3. In the target repo's settings, add an ANTHROPIC_API_KEY secret.
 #
 # See README.md "GitHub Action" section for full setup instructions.
@@ -19,7 +19,7 @@ permissions:
   pull-requests: write
 
 env:
-  REVIEWER_REPO: your-user/PR_Reviewer_Agent # <-- update after pushing this tool to GitHub
+  REVIEWER_REPO: sknt2024/Multi-Agent-PR-Reviewer # <-- update after pushing this tool to GitHub
   REVIEWER_REF: main
 
 jobs:

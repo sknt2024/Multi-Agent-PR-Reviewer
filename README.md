@@ -92,7 +92,7 @@ other repo:
 
 1. Push this project to GitHub.
 2. Copy `.github/workflows/pr-review.yml` into the target repo, and set `REVIEWER_REPO` in it to
-   `<your-user>/PR_Reviewer_Agent`.
+   `sknt2024/Multi-Agent-PR-Reviewer`.
 3. In the target repo's Settings → Secrets, add `ANTHROPIC_API_KEY`.
 4. Open a PR in the target repo — the workflow checks it out, runs the full pipeline, and posts the
    report as a PR comment using the built-in `GITHUB_TOKEN`.
